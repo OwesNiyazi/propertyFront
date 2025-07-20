@@ -26,7 +26,7 @@ export const Register: React.FC = () => {
       await register(username, email, password);
       toast({
         title: "Account created!",
-        description: "Welcome to ImageVault! You are now logged in.",
+        description: "Welcome to Property Hub! You are now logged in.",
       });
       navigate('/home');
     } catch (error) {
@@ -43,7 +43,7 @@ export const Register: React.FC = () => {
   return (
     <AuthLayout
       title="Create Account"
-      subtitle="Join ImageVault to start organizing your images"
+      subtitle="Join Property Hub to start  your dealing"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">

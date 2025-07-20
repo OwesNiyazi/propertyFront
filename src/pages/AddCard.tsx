@@ -114,10 +114,10 @@ export const AddCard: React.FC = () => {
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-foreground mb-2">
-            Add New Image
+            Add New Property
           </h1>
           <p className="text-muted-foreground">
-            Upload a new image to your collection
+            Upload a new Property to your collection
           </p>
         </div>
 
@@ -263,7 +263,7 @@ export const AddCard: React.FC = () => {
                 ) : (
                   <>
                     <ImageIcon size={16} />
-                    Upload Image
+                    Upload 
                   </>
                 )}
               </Button>

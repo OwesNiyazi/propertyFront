@@ -12,7 +12,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title, subtitl
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-2">
-            ImageVault
+          Property Hub
           </h1>
           <h2 className="text-2xl font-semibold text-foreground mb-2">{title}</h2>
           <p className="text-muted-foreground">{subtitle}</p>
