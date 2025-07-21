@@ -11,7 +11,7 @@ type PropertyType = 'Flats' | 'Builder Floors' | 'House Villas' | 'Plots' | 'Far
 
 interface ImageCardProps {
   image: ImageCardType;
-  onUpdate: (id: string, title: string, description?: string, price?: string, type?: string, location?: string) => Promise<void>;
+  onUpdate: (id: string, title: string, description?: string, price?: string, type?: string, location?: string, imageFile?: File) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   showActions?: boolean;
 }
@@ -30,6 +30,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({
   const [editLocation, setEditLocation] = useState(image.location || '');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const [editImageFile, setEditImageFile] = useState<File | undefined>(undefined);
 
   const propertyTypes: PropertyType[] = [
     'Flats',
@@ -62,9 +63,11 @@ export const ImageCard: React.FC<ImageCardProps> = ({
         editDescription.trim() || undefined,
         editPrice.trim() || undefined,
         editType || undefined,
-        editLocation.trim() || undefined
+        editLocation.trim() || undefined,
+        editImageFile
       );
       setIsEditing(false);
+      setEditImageFile(undefined);
       toast({
         title: "Success",
         description: "Image details updated successfully",
@@ -163,6 +166,13 @@ export const ImageCard: React.FC<ImageCardProps> = ({
               placeholder="Enter property description"
               className="text-sm min-h-[60px]"
               disabled={isLoading}
+            />
+            <input
+              type="file"
+              accept="image/*"
+              onChange={e => setEditImageFile(e.target.files ? e.target.files[0] : undefined)}
+              disabled={isLoading}
+              className="text-sm"
             />
             <div className="flex space-x-2">
               <Button

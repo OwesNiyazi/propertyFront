@@ -29,8 +29,8 @@ export const MyList: React.FC = () => {
     fetchImages();
   }, []);
 
-  const handleUpdate = async (id: string, title: string, description?: string, price?: string, type?: string, location?: string) => {
-    await apiService.updateImage(id, title, description, price, type, location);
+  const handleUpdate = async (id: string, title: string, description?: string, price?: string, type?: string, location?: string, imageFile?: File) => {
+    await apiService.updateImage(id, title, description, price, type, location, imageFile);
     await fetchImages();
   };
 
