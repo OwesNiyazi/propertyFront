@@ -140,7 +140,17 @@ class ApiService {
     return response.json();
   }
 
-  async updateImage(id: string, title: string, description?: string, price?: string, type?: string, location?: string, imageFile?: File, propertyType?: string): Promise<ImageCard> {
+  async updateImage(
+    id: string,
+    title: string,
+    description?: string,
+    price?: string,
+    type?: string,
+    location?: string,
+    newImageFiles: File[] = [],
+    propertyType?: string,
+    existingImages: string[] = []
+  ): Promise<ImageCard> {
     const formData = new FormData();
     formData.append('title', title);
     if (description !== undefined) formData.append('description', description);
@@ -148,11 +158,16 @@ class ApiService {
     if (type !== undefined) formData.append('type', type);
     if (location !== undefined) formData.append('location', location);
     if (propertyType !== undefined) formData.append('propertyType', propertyType);
-    if (imageFile) formData.append('image', imageFile);
+
+    // Append all existing image URLs
+    existingImages.forEach(url => formData.append('existingImages', url));
+
+    // Append all new image files
+    newImageFiles.forEach(file => formData.append('files', file));
 
     const response = await fetch(`${BASE_URL}/images/${id}`, {
       method: 'PUT',
-      headers: this.getHeaders(),
+      headers: this.getHeaders(), // Do NOT set Content-Type, browser will set it for FormData
       body: formData,
     });
 
@@ -303,6 +318,7 @@ class ApiService {
     price?: number;
     location?: string;
     image?: File;
+     existingImages?: string[];  // 👈 Add this
   }): Promise<any> {
     let body: FormData | string;
     let headers = this.getHeaders();

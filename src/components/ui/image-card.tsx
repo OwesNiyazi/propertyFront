@@ -11,7 +11,7 @@ type PropertyType = 'Flats' | 'Builder Floors' | 'House Villas' | 'Plots' | 'Far
 
 interface ImageCardProps {
   image: ImageCardType;
-  onUpdate: (id: string, title: string, description?: string, price?: string, type?: string, location?: string, imageFile?: File, propertyType?: 'Rent' | 'Sale') => Promise<void>;
+  onUpdate: (id: string, title: string, description?: string, price?: string, type?: string, location?: string, newImageFiles?: File[], propertyType?: 'Rent' | 'Sale', existingImages?: string[]) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   showActions?: boolean;
 }
@@ -32,6 +32,9 @@ export const ImageCard: React.FC<ImageCardProps> = ({
   const { toast } = useToast();
   const [editImageFile, setEditImageFile] = useState<File | undefined>(undefined);
   const [editPropertyType, setEditPropertyType] = useState<'Rent' | 'Sale' | ''>(image.propertyType as 'Rent' | 'Sale' | '');
+  const [editImageFiles, setEditImageFiles] = useState<File[]>([]);
+  const [editImagePreviews, setEditImagePreviews] = useState<string[]>([]);
+  const [existingImages, setExistingImages] = useState<string[]>(image.imageUrls || []);
 
   const propertyTypes: PropertyType[] = [
     'Flats',
@@ -65,19 +68,20 @@ export const ImageCard: React.FC<ImageCardProps> = ({
     }
     setIsLoading(true);
     try {
-      console.log('Sending file to backend:', editImageFile);
       await onUpdate(
-        image._id, 
-        editTitle.trim(), 
+        image._id,
+        editTitle.trim(),
         editDescription.trim() || undefined,
         editPrice.trim() || undefined,
         editType || undefined,
         editLocation.trim() || undefined,
-        editImageFile,
-        editPropertyType
+        editImageFiles, // <-- all new files
+        editPropertyType,
+        existingImages // <-- all remaining old images
       );
       setIsEditing(false);
-      setEditImageFile(undefined);
+      setEditImageFiles([]);
+      setEditImagePreviews([]);
       toast({
         title: "Success",
         description: "Image details updated successfully",
@@ -121,6 +125,31 @@ export const ImageCard: React.FC<ImageCardProps> = ({
     setEditType(image.type as PropertyType || '');
     setEditLocation(image.location || '');
     setIsEditing(false);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const validFiles = files.filter(file => file.type.startsWith('image/'));
+    setEditImageFiles(prev => [...prev, ...validFiles]);
+    // Create previews for new files only
+    const readers = validFiles.map(file => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      return new Promise<string>((resolve) => {
+        reader.onload = (e) => resolve(e.target?.result as string);
+      });
+    });
+    Promise.all(readers).then(newPreviews => {
+      setEditImagePreviews(prev => [...prev, ...newPreviews]);
+    });
+  };
+
+  const handleRemoveExistingImage = (idx: number) => {
+    setExistingImages(images => images.filter((_, i) => i !== idx));
+  };
+  const handleRemoveNewImage = (idx: number) => {
+    setEditImageFiles(files => files.filter((_, i) => i !== idx));
+    setEditImagePreviews(previews => previews.filter((_, i) => i !== idx));
   };
 
   return (
@@ -186,10 +215,50 @@ export const ImageCard: React.FC<ImageCardProps> = ({
               className="text-sm min-h-[60px]"
               disabled={isLoading}
             />
+            {/* Existing images */}
+            {existingImages.length > 0 && (
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                {existingImages.map((url, idx) => (
+                  <div key={idx} className="relative">
+                    <img src={url} alt={`Old ${idx + 1}`} className="w-full h-24 object-cover rounded" />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      className="absolute top-1 right-1"
+                      onClick={() => handleRemoveExistingImage(idx)}
+                    >
+                      <X size={14} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* New images */}
+            {editImagePreviews.length > 0 && (
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                {editImagePreviews.map((preview, idx) => (
+                  <div key={idx} className="relative">
+                    <img src={preview} alt={`New ${idx + 1}`} className="w-full h-24 object-cover rounded" />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      className="absolute top-1 right-1"
+                      onClick={() => handleRemoveNewImage(idx)}
+                    >
+                      <X size={14} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* File input */}
             <input
               type="file"
               accept="image/*"
-              onChange={e => setEditImageFile(e.target.files ? e.target.files[0] : undefined)}
+              multiple
+              onChange={handleFileSelect}
               disabled={isLoading}
               className="text-sm"
             />

@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
+import { Dialog, DialogContent } from '@/components/ui/dialog'; // If you have a dialog/modal component
 
 export const Home: React.FC = () => {
   const [images, setImages] = useState<ImageCardType[]>([]);
@@ -18,6 +19,9 @@ export const Home: React.FC = () => {
   const { toast } = useToast();
   const [filterType, setFilterType] = useState<string>('All');
   const [filterListing, setFilterListing] = useState<string>('All');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalImages, setModalImages] = useState<string[]>([]);
+  const [modalIndex, setModalIndex] = useState(0);
 
   const propertyTypes = [
     'Flats',
@@ -60,6 +64,12 @@ export const Home: React.FC = () => {
   const handleDelete = async (id: string) => {
     await apiService.deleteImage(id);
     await fetchImages();
+  };
+
+  const handleCardClick = (image: ImageCardType) => {
+    setModalImages(image.imageUrls || []);
+    setModalIndex(0);
+    setModalOpen(true);
   };
 
   // Filter images by both type and listing
@@ -137,16 +147,48 @@ export const Home: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {filteredImages.map((image) => (
-              <ImageCard
-                key={image._id}
-                image={image}
-                onUpdate={handleUpdate}
-                onDelete={handleDelete}
-                showActions={false}
-              />
+              <div key={image._id} onClick={() => handleCardClick(image)} className="cursor-pointer">
+                <ImageCard
+                  image={image}
+                  onUpdate={handleUpdate}
+                  onDelete={handleDelete}
+                  showActions={false}
+                />
+              </div>
             ))}
           </div>
         )}
+        {/* Modal for image preview */}
+        <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+          <DialogContent className="flex flex-col items-center">
+            {modalImages.length > 0 && (
+              <>
+                <img
+                  src={modalImages[modalIndex]}
+                  alt={`Property ${modalIndex + 1}`}
+                  className="max-h-[70vh] max-w-full mb-4"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setModalIndex((i) => Math.max(i - 1, 0))}
+                    disabled={modalIndex === 0}
+                  >
+                    Prev
+                  </button>
+                  <button
+                    onClick={() => setModalIndex((i) => Math.min(i + 1, modalImages.length - 1))}
+                    disabled={modalIndex === modalImages.length - 1}
+                  >
+                    Next
+                  </button>
+                </div>
+                <div className="text-xs mt-2">
+                  {modalIndex + 1} / {modalImages.length}
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );

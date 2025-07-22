@@ -38,19 +38,28 @@ export const AddCard: React.FC = () => {
     'Shops Showrooms'
   ];
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const validFiles = files.filter(file => file.type.startsWith('image/'));
-    setSelectedFiles(validFiles);
-    const readers = validFiles.map(file => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      return new Promise<string>((resolve) => {
-        reader.onload = (e) => resolve(e.target?.result as string);
-      });
+ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const files = Array.from(e.target.files || []);
+  const validFiles = files.filter(file => file.type.startsWith('image/'));
+
+  // Append new files to existing ones
+  setSelectedFiles(prev => [...prev, ...validFiles]);
+
+  // Create previews for new files only
+  const readers = validFiles.map(file => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    return new Promise<string>((resolve) => {
+      reader.onload = (e) => resolve(e.target?.result as string);
     });
-    Promise.all(readers).then(setPreviews);
-  };
+  });
+
+  // Append new previews to existing ones
+  Promise.all(readers).then(newPreviews => {
+    setPreviews(prev => [...prev, ...newPreviews]);
+  });
+};
+
 
   const handleRemoveFile = (index: number) => {
     setSelectedFiles(files => files.filter((_, i) => i !== index));
