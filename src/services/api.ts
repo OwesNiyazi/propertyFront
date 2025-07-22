@@ -8,6 +8,7 @@ export interface User {
 }
 
 export interface ImageCard {
+  listing: string;
   _id: string;
   title: string;
   description?: string;
