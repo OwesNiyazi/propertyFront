@@ -27,7 +27,7 @@ export const Home: React.FC = () => {
 
   const fetchImages = async () => {
     try {
-      const fetchedImages = await apiService.getImages();
+      const fetchedImages = await apiService.getAllImages();
       setImages(fetchedImages);
     } catch (error) {
       toast({

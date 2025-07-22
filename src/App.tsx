@@ -11,6 +11,7 @@ import { Home } from "@/pages/Home";
 import { MyList } from "@/pages/MyList";
 import { AddCard } from "@/pages/AddCard";
 import NotFound from "./pages/NotFound";
+import AdminDashboard from "@/pages/AdminDashboard";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AddCard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute adminOnly>
+                  <AdminDashboard />
                 </ProtectedRoute>
               }
             />

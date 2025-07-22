@@ -11,7 +11,7 @@ type PropertyType = 'Flats' | 'Builder Floors' | 'House Villas' | 'Plots' | 'Far
 
 interface ImageCardProps {
   image: ImageCardType;
-  onUpdate: (id: string, title: string, description?: string, price?: string, type?: string, location?: string, imageFile?: File) => Promise<void>;
+  onUpdate: (id: string, title: string, description?: string, price?: string, type?: string, location?: string, imageFile?: File, propertyType?: 'Rent' | 'Sale') => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   showActions?: boolean;
 }
@@ -31,6 +31,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const [editImageFile, setEditImageFile] = useState<File | undefined>(undefined);
+  const [editPropertyType, setEditPropertyType] = useState<'Rent' | 'Sale' | ''>(image.propertyType as 'Rent' | 'Sale' | '');
 
   const propertyTypes: PropertyType[] = [
     'Flats',
@@ -54,9 +55,17 @@ export const ImageCard: React.FC<ImageCardProps> = ({
       });
       return;
     }
-
+    if (!editPropertyType) {
+      toast({
+        title: "Error",
+        description: "Please select property type (Rent or Sale)",
+        variant: "destructive",
+      });
+      return;
+    }
     setIsLoading(true);
     try {
+      console.log('Sending file to backend:', editImageFile);
       await onUpdate(
         image._id, 
         editTitle.trim(), 
@@ -64,7 +73,8 @@ export const ImageCard: React.FC<ImageCardProps> = ({
         editPrice.trim() || undefined,
         editType || undefined,
         editLocation.trim() || undefined,
-        editImageFile
+        editImageFile,
+        editPropertyType
       );
       setIsEditing(false);
       setEditImageFile(undefined);
@@ -117,7 +127,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({
     <div className="group bg-card/50 backdrop-blur-sm border border-border rounded-lg overflow-hidden shadow-card hover:shadow-glow transition-all duration-300 transform hover:scale-105">
       <div className="aspect-square overflow-hidden bg-muted">
         <img
-          src={image.imageUrl}
+          src={image.imageUrls?.[0]}
           alt={image.title}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
           loading="lazy"
@@ -151,6 +161,15 @@ export const ImageCard: React.FC<ImageCardProps> = ({
                     {propertyType}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            <Select value={editPropertyType} onValueChange={setEditPropertyType}>
+              <SelectTrigger className="text-sm">
+                <SelectValue placeholder="Select property type (Rent or Sale)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Rent">Rent</SelectItem>
+                <SelectItem value="Sale">Sale</SelectItem>
               </SelectContent>
             </Select>
             <Input
@@ -229,6 +248,9 @@ export const ImageCard: React.FC<ImageCardProps> = ({
                   {image.description}
                 </p>
               )}
+              <div className="text-xs font-semibold text-primary mb-1">
+                {image.propertyType}
+              </div>
             </div>
             
             {showActions && (

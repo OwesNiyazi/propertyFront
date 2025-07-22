@@ -4,6 +4,7 @@ export interface User {
   _id: string;
   username: string;
   email: string;
+  isAdmin?: boolean;
 }
 
 export interface ImageCard {
@@ -12,9 +13,11 @@ export interface ImageCard {
   description?: string;
   price?: number;
   type?: string;
+  propertyType: string;
   location?: string;
-  imageUrl: string;
-  userId: string;
+  imageUrls: string[];
+  userId?: string;
+  createdBy?: User | string;
   createdAt: string;
   updatedAt: string;
 }
@@ -53,7 +56,7 @@ class ApiService {
     localStorage.removeItem('token');
   }
 
-  private getHeaders() {
+  public getHeaders() {
     const headers: Record<string, string> = {};
     if (this.token) {
       headers.Authorization = `Bearer ${this.token}`;
@@ -136,13 +139,14 @@ class ApiService {
     return response.json();
   }
 
-  async updateImage(id: string, title: string, description?: string, price?: string, type?: string, location?: string, imageFile?: File): Promise<ImageCard> {
+  async updateImage(id: string, title: string, description?: string, price?: string, type?: string, location?: string, imageFile?: File, propertyType?: string): Promise<ImageCard> {
     const formData = new FormData();
     formData.append('title', title);
     if (description !== undefined) formData.append('description', description);
     if (price !== undefined) formData.append('price', price);
     if (type !== undefined) formData.append('type', type);
     if (location !== undefined) formData.append('location', location);
+    if (propertyType !== undefined) formData.append('propertyType', propertyType);
     if (imageFile) formData.append('image', imageFile);
 
     const response = await fetch(`${BASE_URL}/images/${id}`, {
@@ -169,6 +173,164 @@ class ApiService {
       const error = await response.json();
       throw new Error(error.message || 'Delete failed');
     }
+  }
+
+  // Multi-image upload
+  async uploadImages(data: {
+    title: string;
+    description: string;
+    type: string;
+    subtype: string;
+    price: number;
+    location: string;
+    images: File[];
+    propertyType: string;
+  }): Promise<any> {
+    const formData = new FormData();
+    formData.append('title', data.title);
+    formData.append('description', data.description);
+    formData.append('type', data.type);
+    formData.append('subtype', data.subtype);
+    formData.append('price', String(data.price));
+    formData.append('location', data.location);
+    formData.append('propertyType', data.propertyType);
+    data.images.forEach((file) => formData.append('image', file));
+
+    const response = await fetch(`${BASE_URL}/images/upload`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: formData,
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Upload failed');
+    }
+    return response.json();
+  }
+
+  // Admin: Get all images
+  async getAllImages(): Promise<ImageCard[]> {
+    const response = await fetch(`${BASE_URL}/images/all`, {
+      headers: this.getHeaders(),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch all images');
+    }
+    return response.json();
+  }
+
+  // Admin: Get all users
+  async getAllUsers(): Promise<User[]> {
+    const response = await fetch(`${BASE_URL}/auth/users`, {
+      headers: this.getHeaders(),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch users');
+    }
+    return response.json();
+  }
+
+  // Admin: Update user
+  async updateUser(id: string, data: { username?: string; email?: string }): Promise<any> {
+    const response = await fetch(`${BASE_URL}/auth/users/${id}`, {
+      method: 'PUT',
+      headers: {
+        ...this.getHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to update user');
+    }
+    return response.json();
+  }
+
+  // Admin: Delete user
+  async deleteUser(id: string): Promise<void> {
+    const response = await fetch(`${BASE_URL}/auth/users/${id}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to delete user');
+    }
+  }
+
+  async adminCreateUser(data: { username: string; email: string; password: string; isAdmin: boolean }): Promise<User> {
+    const response = await fetch(`${BASE_URL}/auth/users`, {
+      method: 'POST',
+      headers: {
+        ...this.getHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to create user');
+    }
+    return response.json();
+  }
+
+  async adminUpdateUser(id: string, data: { username?: string; email?: string; password?: string; isAdmin?: boolean }): Promise<User> {
+    const response = await fetch(`${BASE_URL}/auth/users/${id}`, {
+      method: 'PUT',
+      headers: {
+        ...this.getHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to update user');
+    }
+    return response.json();
+  }
+
+  // Update image (support JSON or multipart)
+  async updateImageFlexible(id: string, data: {
+    title?: string;
+    description?: string;
+    type?: string;
+    subtype?: string;
+    price?: number;
+    location?: string;
+    image?: File;
+  }): Promise<any> {
+    let body: FormData | string;
+    let headers = this.getHeaders();
+    if (data.image) {
+      // Use multipart
+      const formData = new FormData();
+      if (data.title) formData.append('title', data.title);
+      if (data.description) formData.append('description', data.description);
+      if (data.type) formData.append('type', data.type);
+      if (data.subtype) formData.append('subtype', data.subtype);
+      if (data.price !== undefined) formData.append('price', String(data.price));
+      if (data.location) formData.append('location', data.location);
+      formData.append('image', data.image);
+      body = formData;
+    } else {
+      // Use JSON
+      headers = { ...headers, 'Content-Type': 'application/json' };
+      body = JSON.stringify(data);
+    }
+    const response = await fetch(`${BASE_URL}/images/${id}`, {
+      method: 'PUT',
+      headers,
+      body,
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Update failed');
+    }
+    return response.json();
   }
 }
 

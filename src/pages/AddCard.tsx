@@ -18,9 +18,10 @@ export const AddCard: React.FC = () => {
   const [price, setPrice] = useState('');
   const [type, setType] = useState<PropertyType | ''>('');
   const [location, setLocation] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [propertyType, setPropertyType] = useState<'Rent' | 'Sale' | ''>('');
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -38,28 +39,22 @@ export const AddCard: React.FC = () => {
   ];
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.type.startsWith('image/')) {
-        setSelectedFile(file);
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          setPreview(e.target?.result as string);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        toast({
-          title: "Invalid file",
-          description: "Please select an image file",
-          variant: "destructive",
-        });
-      }
-    }
+    const files = Array.from(e.target.files || []);
+    const validFiles = files.filter(file => file.type.startsWith('image/'));
+    setSelectedFiles(validFiles);
+    const readers = validFiles.map(file => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      return new Promise<string>((resolve) => {
+        reader.onload = (e) => resolve(e.target?.result as string);
+      });
+    });
+    Promise.all(readers).then(setPreviews);
   };
 
-  const handleRemoveFile = () => {
-    setSelectedFile(null);
-    setPreview(null);
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles(files => files.filter((_, i) => i !== index));
+    setPreviews(previews => previews.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -74,10 +69,19 @@ export const AddCard: React.FC = () => {
       return;
     }
 
-    if (!selectedFile) {
+    if (selectedFiles.length === 0) {
       toast({
         title: "Error",
-        description: "Please select an image to upload",
+        description: "Please select at least one image to upload",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!propertyType) {
+      toast({
+        title: "Error",
+        description: "Please select property type (Rent or Sale)",
         variant: "destructive",
       });
       return;
@@ -85,23 +89,25 @@ export const AddCard: React.FC = () => {
 
     setIsUploading(true);
     try {
-      await apiService.uploadImage(
-        title.trim(), 
-        selectedFile, 
-        description.trim() || undefined,
-        price.trim() || undefined,
-        type || undefined,
-        location.trim() || undefined
-      );
+      await apiService.uploadImages({
+        title: title.trim(),
+        description: description.trim() || '',
+        type: type || '',
+        subtype: '', // Add subtype field if needed
+        price: Number(price) || 0,
+        location: location.trim() || '',
+        images: selectedFiles,
+        propertyType,
+      });
       toast({
         title: "Success!",
-        description: "Your image has been uploaded successfully",
+        description: "Your images have been uploaded successfully",
       });
       navigate('/my-list');
     } catch (error) {
       toast({
         title: "Upload failed",
-        description: error instanceof Error ? error.message : "Failed to upload image",
+        description: error instanceof Error ? error.message : "Failed to upload images",
         variant: "destructive",
       });
     } finally {
@@ -166,6 +172,19 @@ export const AddCard: React.FC = () => {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="propertyType">Property Type</Label>
+              <Select value={propertyType} onValueChange={setPropertyType}>
+                <SelectTrigger className="bg-background/50">
+                  <SelectValue placeholder="Select property type (Rent or Sale)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Rent">Rent</SelectItem>
+                  <SelectItem value="Sale">Sale</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="location">Location</Label>
               <Input
                 id="location"
@@ -189,52 +208,51 @@ export const AddCard: React.FC = () => {
             </div>
 
             <div className="space-y-4">
-              <Label>Select Image</Label>
-              
-              {!preview ? (
-                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                    id="file-upload"
-                  />
-                  <label
-                    htmlFor="file-upload"
-                    className="cursor-pointer flex flex-col items-center space-y-4"
-                  >
-                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-                      <Upload className="w-8 h-8 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-lg font-medium text-foreground">
-                        Choose an image
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        PNG, JPG, GIF up to 10MB
-                      </p>
-                    </div>
-                  </label>
-                </div>
-              ) : (
-                <div className="relative">
-                  <div className="aspect-video rounded-lg overflow-hidden bg-muted">
-                    <img
-                      src={preview}
-                      alt="Preview"
-                      className="w-full h-full object-cover"
-                    />
+              <Label>Select Images</Label>
+              <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  id="file-upload"
+                />
+                <label
+                  htmlFor="file-upload"
+                  className="cursor-pointer flex flex-col items-center space-y-4"
+                >
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                    <Upload className="w-8 h-8 text-primary" />
                   </div>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleRemoveFile}
-                    className="absolute top-2 right-2"
-                  >
-                    <X size={16} />
-                  </Button>
+                  <div>
+                    <p className="text-lg font-medium text-foreground">
+                      Choose images
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      PNG, JPG, GIF up to 10MB each
+                    </p>
+                  </div>
+                </label>
+              </div>
+              {previews.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                  {previews.map((preview, idx) => (
+                    <div key={idx} className="relative">
+                      <div className="aspect-video rounded-lg overflow-hidden bg-muted">
+                        <img src={preview} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleRemoveFile(idx)}
+                        className="absolute top-2 right-2"
+                      >
+                        <X size={16} />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -252,7 +270,7 @@ export const AddCard: React.FC = () => {
               <Button
                 type="submit"
                 variant="gradient"
-                disabled={isUploading || !selectedFile || !title.trim()}
+                disabled={isUploading || selectedFiles.length === 0 || !title.trim()}
                 className="flex-1"
               >
                 {isUploading ? (

@@ -4,15 +4,22 @@ import { ImageCard } from '@/components/ui/image-card';
 import { apiService, ImageCard as ImageCardType } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Image as ImageIcon } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const MyList: React.FC = () => {
   const [images, setImages] = useState<ImageCardType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const fetchImages = async () => {
     try {
-      const fetchedImages = await apiService.getImages();
+      let fetchedImages;
+      if (user?.isAdmin) {
+        fetchedImages = await apiService.getAllImages();
+      } else {
+        fetchedImages = await apiService.getImages();
+      }
       setImages(fetchedImages);
     } catch (error) {
       toast({
@@ -27,10 +34,20 @@ export const MyList: React.FC = () => {
 
   useEffect(() => {
     fetchImages();
-  }, []);
+    // eslint-disable-next-line
+  }, [user]);
 
-  const handleUpdate = async (id: string, title: string, description?: string, price?: string, type?: string, location?: string, imageFile?: File) => {
-    await apiService.updateImage(id, title, description, price, type, location, imageFile);
+  const handleUpdate = async (
+    id: string,
+    title: string,
+    description?: string,
+    price?: string,
+    type?: string,
+    location?: string,
+    imageFile?: File,
+    propertyType?: 'Rent' | 'Sale'
+  ) => {
+    await apiService.updateImage(id, title, description, price, type, location, imageFile, propertyType);
     await fetchImages();
   };
 
