@@ -26,14 +26,9 @@ const App = () => (
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route
-              path="/home"
-              element={
-                <ProtectedRoute>
-                  <Home />
-                </ProtectedRoute>
-              }
-            />
+            {/* Home page is now publicly accessible */}
+            <Route path="/home" element={<Home />} />
+            {/* Protected routes for authenticated users */}
             <Route
               path="/my-list"
               element={

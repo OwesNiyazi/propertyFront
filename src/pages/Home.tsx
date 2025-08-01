@@ -3,7 +3,11 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { ImageCard } from '@/components/ui/image-card';
 import { apiService, ImageCard as ImageCardType } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Image as ImageIcon } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { Loader2, Image as ImageIcon, Plus, LogIn, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -11,14 +15,17 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
-import { Dialog, DialogContent } from '@/components/ui/dialog'; // If you have a dialog/modal component
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 export const Home: React.FC = () => {
   const [images, setImages] = useState<ImageCardType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
   const [filterType, setFilterType] = useState<string>('All');
   const [filterListing, setFilterListing] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [modalOpen, setModalOpen] = useState(false);
   const [modalImages, setModalImages] = useState<string[]>([]);
   const [modalIndex, setModalIndex] = useState(0);
@@ -57,13 +64,57 @@ export const Home: React.FC = () => {
   }, []);
 
   const handleUpdate = async (id: string, title: string) => {
-    await apiService.updateImage(id, title);
-    await fetchImages();
+    if (!isAuthenticated) {
+      toast({
+        title: "Login Required",
+        description: "Please login to edit properties",
+        variant: "destructive",
+      });
+      navigate('/login');
+      return;
+    }
+    
+    try {
+      await apiService.updateImage(id, title);
+      await fetchImages();
+      toast({
+        title: "Success",
+        description: "Property updated successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update property",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDelete = async (id: string) => {
-    await apiService.deleteImage(id);
-    await fetchImages();
+    if (!isAuthenticated) {
+      toast({
+        title: "Login Required",
+        description: "Please login to delete properties",
+        variant: "destructive",
+      });
+      navigate('/login');
+      return;
+    }
+    
+    try {
+      await apiService.deleteImage(id);
+      await fetchImages();
+      toast({
+        title: "Success",
+        description: "Property deleted successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete property",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleCardClick = (image: ImageCardType) => {
@@ -72,11 +123,35 @@ export const Home: React.FC = () => {
     setModalOpen(true);
   };
 
-  // Filter images by both type and listing
+  const handleAddProperty = () => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Login Required",
+        description: "Please login to add new properties",
+        variant: "destructive",
+      });
+      navigate('/login');
+      return;
+    }
+    navigate('/add-card');
+  };
+
+  // Filter images by type, listing, and search query
   const filteredImages = images.filter((img) => {
+    // Type filter
     const matchesType = filterType === 'All' || img.type === filterType;
-    const matchesListing = filterListing === 'All' ||  img.propertyType === filterListing;
-    return matchesType && matchesListing;
+    
+    // Listing filter
+    const matchesListing = filterListing === 'All' || img.propertyType === filterListing;
+    
+    // Search filter - search in title, description, location
+    const searchLower = searchQuery.toLowerCase();
+    const matchesSearch = searchQuery === '' || 
+      img.title.toLowerCase().includes(searchLower) ||
+      (img.description && img.description.toLowerCase().includes(searchLower)) ||
+      (img.location && img.location.toLowerCase().includes(searchLower));
+    
+    return matchesType && matchesListing && matchesSearch;
   });
 
   if (isLoading) {
@@ -102,35 +177,113 @@ export const Home: React.FC = () => {
           <p className="text-muted-foreground">
             Explore your collection of beautiful dreams
           </p>
+          {!isAuthenticated && (
+            <div className="mt-4 p-4 bg-primary/10 rounded-lg border border-primary/20">
+              <p className="text-sm text-muted-foreground mb-3">
+                👋 Welcome! Browse properties freely. Login to add, edit, or manage your own properties.
+              </p>
+              <div className="flex gap-2 justify-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/login')}
+                  className="flex items-center gap-2"
+                >
+                  <LogIn size={16} />
+                  Login
+                </Button>
+                <Button
+                  variant="gradient"
+                  size="sm"
+                  onClick={() => navigate('/register')}
+                >
+                  Sign Up
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Filter dropdowns */}
-        <div className="flex justify-end mb-4 gap-4">
-          {/* Property Type Filter */}
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-[220px] bg-background/50">
-              <SelectValue placeholder="Filter by type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">All Types</SelectItem>
-              {propertyTypes.map((type) => (
-                <SelectItem key={type} value={type}>{type}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Action buttons for authenticated users */}
+        {isAuthenticated && (
+          <div className="flex justify-between items-center">
+            <div className="flex gap-2">
+              <Button
+                onClick={handleAddProperty}
+                className="flex items-center gap-2"
+                variant="gradient"
+              >
+                <Plus size={16} />
+                Add Property
+              </Button>
+              <Button
+                onClick={() => navigate('/my-list')}
+                variant="outline"
+              >
+                My Properties
+              </Button>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Welcome back, {user?.username}!
+            </div>
+          </div>
+        )}
 
-          {/* Listing Type Filter */}
-          <Select value={filterListing} onValueChange={setFilterListing}>
-            <SelectTrigger className="w-[220px] bg-background/50">
-              <SelectValue placeholder="Filter by listing" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">All Rent/Sale</SelectItem>
-              {listingTypes.map((listing) => (
-                <SelectItem key={listing} value={listing}>{listing}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Filter section */}
+        <div className="space-y-4">
+          {/* Search bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={16} />
+            <Input
+              placeholder="Search by title, description, or location..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-background/50"
+            />
+          </div>
+
+          {/* Filter dropdowns */}
+          <div className="flex flex-wrap gap-4">
+            {/* Property Type Filter */}
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-[180px] bg-background/50">
+                <SelectValue placeholder="Filter by type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Types</SelectItem>
+                {propertyTypes.map((type) => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Listing Type Filter */}
+            <Select value={filterListing} onValueChange={setFilterListing}>
+              <SelectTrigger className="w-[180px] bg-background/50">
+                <SelectValue placeholder="Filter by listing" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Rent/Sale</SelectItem>
+                {listingTypes.map((listing) => (
+                  <SelectItem key={listing} value={listing}>{listing}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Clear filters button */}
+            {(filterType !== 'All' || filterListing !== 'All' || searchQuery !== '') && (
+              <button
+                onClick={() => {
+                  setFilterType('All');
+                  setFilterListing('All');
+                  setSearchQuery('');
+                }}
+                className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Image Grid */}
@@ -138,11 +291,23 @@ export const Home: React.FC = () => {
           <div className="text-center py-12">
             <ImageIcon className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-lg font-medium text-foreground mb-2">
-              No images yet
+              No properties yet
             </h3>
             <p className="text-muted-foreground">
-              Start by uploading your first image!
+              {isAuthenticated 
+                ? "Start by adding your first property!"
+                : "Be the first to add a property!"
+              }
             </p>
+            {!isAuthenticated && (
+              <Button
+                onClick={() => navigate('/register')}
+                className="mt-4"
+                variant="gradient"
+              >
+                Sign Up to Add Properties
+              </Button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -158,6 +323,7 @@ export const Home: React.FC = () => {
             ))}
           </div>
         )}
+        
         {/* Modal for image preview */}
         <Dialog open={modalOpen} onOpenChange={setModalOpen}>
           <DialogContent className="flex flex-col items-center">
